@@ -1,0 +1,131 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user with role-based access.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "cashier"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Inventory item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "cost": { "type": "number", "description": "Purchase cost for profit calculation" },
+        "price": { "type": "number", "description": "Selling price" },
+        "stock": { "type": "integer" },
+        "category_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "cost", "price", "stock", "category_id"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Product category.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Sales record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "customer_id": { "type": "string" },
+        "total_amount": { "type": "number" },
+        "total_cost": { "type": "number", "description": "Total cost of items for profit calculation" },
+        "profit": { "type": "number", "description": "Calculated profit (amount - cost)" },
+        "payment_type": { "type": "string", "enum": ["cash", "card", "debt"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "total_amount", "total_cost", "profit", "payment_type", "created_at"]
+    },
+    "TransactionItem": {
+      "title": "TransactionItem",
+      "description": "Individual item in a transaction.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "transaction_id": { "type": "string" },
+        "product_id": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "price": { "type": "number" }
+      },
+      "required": ["transaction_id", "product_id", "quantity", "price"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Customer record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "contact": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Debt": {
+      "title": "Debt",
+      "description": "Customer debt record (Utang).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customer_id": { "type": "string" },
+        "total_debt": { "type": "number" },
+        "remaining_balance": { "type": "number" },
+        "status": { "type": "string", "enum": ["unpaid", "partially_paid", "paid"] }
+      },
+      "required": ["customer_id", "total_debt", "remaining_balance", "status"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Debt payment record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "debt_id": { "type": "string" },
+        "amount": { "type": "number" },
+        "payment_date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["debt_id", "amount", "payment_date"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System alerts.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["low_stock", "unpaid_debt", "system"] },
+        "message": { "type": "string" },
+        "status": { "type": "string", "enum": ["unread", "read"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "message", "status", "created_at"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "Users collection." },
+    "/products/{productId}": { "schema": "Product", "description": "Products collection." },
+    "/categories/{categoryId}": { "schema": "Category", "description": "Categories collection." },
+    "/transactions/{transactionId}": { "schema": "Transaction", "description": "Transactions collection." },
+    "/transactions/{transactionId}/items/{itemId}": { "schema": "TransactionItem", "description": "Items in a transaction." },
+    "/customers/{customerId}": { "schema": "Customer", "description": "Customers collection." },
+    "/debts/{debtId}": { "schema": "Debt", "description": "Debts collection." },
+    "/payments/{paymentId}": { "schema": "Payment", "description": "Payments collection." },
+    "/notifications/{notificationId}": { "schema": "Notification", "description": "Notifications collection." }
+  }
+}

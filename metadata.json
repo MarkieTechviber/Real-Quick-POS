@@ -1,0 +1,5 @@
+{
+  "name": "REAL QUICK POS",
+  "description": "A high-performance, real-time Point of Sale (POS) system featuring advanced inventory management, customer debt (Utang) tracking, automated profit reporting, and role-based access control for Admins and Cashiers.",
+  "requestFramePermissions": []
+}

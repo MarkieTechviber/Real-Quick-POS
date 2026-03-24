@@ -1,0 +1,143 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "markjoshuabaluran@gmail.com" && request.auth.token.email_verified == true)
+        );
+    }
+
+    function isCashier() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'cashier';
+    }
+
+    // --- Domain Validators ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'email', 'role', 'created_at']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && data.email.size() > 0 && data.email.size() < 100 &&
+             data.role in ['admin', 'cashier'] &&
+             data.created_at is timestamp;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'cost', 'price', 'stock', 'category_id', 'created_at']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.cost is number && data.cost >= 0 &&
+             data.price is number && data.price >= 0 &&
+             data.stock is number &&
+             data.category_id is string &&
+             data.created_at is timestamp;
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['user_id', 'total_amount', 'total_cost', 'profit', 'payment_type', 'created_at']) &&
+             data.user_id == request.auth.uid &&
+             data.total_amount is number &&
+             data.total_cost is number &&
+             data.profit is number &&
+             data.payment_type in ['cash', 'card', 'debt'] &&
+             data.created_at is timestamp;
+    }
+
+    function isValidCustomer(data) {
+      return data.keys().hasAll(['name']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             (!('contact' in data) || (data.contact is string && data.contact.size() < 100));
+    }
+
+    function isValidDebt(data) {
+      return data.keys().hasAll(['customer_id', 'transaction_id', 'total_debt', 'remaining_balance', 'status', 'created_at']) &&
+             data.customer_id is string &&
+             data.transaction_id is string &&
+             data.total_debt is number &&
+             data.remaining_balance is number &&
+             data.status in ['unpaid', 'partially_paid', 'paid'] &&
+             data.created_at is timestamp;
+    }
+
+    function isValidPayment(data) {
+      return data.keys().hasAll(['debt_id', 'amount', 'payment_date']) &&
+             data.debt_id is string &&
+             data.amount is number &&
+             data.payment_date is timestamp;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['type', 'message', 'status', 'created_at']) &&
+             data.type in ['low_stock', 'unpaid_debt', 'system'] &&
+             data.message is string && data.message.size() < 500 &&
+             data.status in ['unread', 'read'] &&
+             data.created_at is timestamp;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      // Prevent self-escalation: non-admins can only create/update themselves with 'cashier' role
+      // unless they are the bootstrap admin.
+      allow create, update: if isOwner(userId) && isValidUser(request.resource.data) && 
+        (request.resource.data.role == 'cashier' || isAdmin());
+      allow create, update: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() && isValidProduct(request.resource.data);
+      // Cashiers can only update stock
+      allow update: if isAuthenticated() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']) &&
+        request.resource.data.stock is number;
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidTransaction(request.resource.data);
+      
+      match /items/{itemId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+      }
+    }
+
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated() && isValidCustomer(request.resource.data);
+    }
+
+    match /debts/{debtId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidDebt(request.resource.data);
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidPayment(request.resource.data);
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidNotification(request.resource.data);
+    }
+  }
+}
